@@ -1190,6 +1190,7 @@ function submitVote(id, action, name, era) {
   if (!APPS_SCRIPT_URL) return;
   fetch(APPS_SCRIPT_URL, {
     method: 'POST',
+    mode: 'no-cors',
     headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify({ meme_id: id, action, meme_name: name, era })
   }).catch(() => {});
