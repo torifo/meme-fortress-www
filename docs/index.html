@@ -778,9 +778,16 @@
       MEME FORTRESS
       <span>// 図書館選別システム</span>
     </div>
-    <div class="counter">
-      <strong id="remaining">0</strong>
-      REMAINING
+    <div style="display:flex;align-items:center;gap:12px">
+      <button id="btn-stop" title="中断して結果を見る" style="
+        background:transparent;border:1px solid var(--dim);border-radius:5px;
+        color:var(--text-dim);font-family:'IBM Plex Mono',monospace;font-size:9px;
+        letter-spacing:.1em;padding:5px 10px;cursor:pointer;transition:border-color .2s,color .2s;
+      ">■ 中断</button>
+      <div class="counter">
+        <strong id="remaining">0</strong>
+        REMAINING
+      </div>
     </div>
   </header>
 
@@ -822,8 +829,8 @@
 
 <div id="done-screen">
   <div class="done-header">
-    <h1>ARCHIVE COMPLETE</h1>
-    <p>あなたの図書館が完成しました</p>
+    <h1 id="done-title">ARCHIVE COMPLETE</h1>
+    <p id="done-sub">あなたの図書館が完成しました</p>
   </div>
 
   <div class="done-stats">
@@ -1104,10 +1111,23 @@ function updateProgress() {
 // ═══════════════════════════════════════════════════
 // DONE SCREEN
 // ═══════════════════════════════════════════════════
-function showDoneScreen() {
+function showDoneScreen(interrupted = false) {
   document.getElementById('app').style.display = 'none';
   const done = document.getElementById('done-screen');
   done.style.display = 'flex';
+
+  if (interrupted) {
+    document.getElementById('done-title').textContent = 'PAUSED';
+    document.getElementById('done-sub').textContent =
+      `${currentIndex}/${memes.length} 件を選別 — 途中経過`;
+    document.getElementById('btn-retry').textContent = 'RESUME';
+    document.getElementById('btn-retry').dataset.resume = '1';
+  } else {
+    document.getElementById('done-title').textContent = 'ARCHIVE COMPLETE';
+    document.getElementById('done-sub').textContent = 'あなたの図書館が完成しました';
+    document.getElementById('btn-retry').textContent = 'RESTART ARCHIVE';
+    delete document.getElementById('btn-retry').dataset.resume;
+  }
 
   document.getElementById('stat-collected').textContent = library.length;
   document.getElementById('stat-skipped').textContent = skippedList.length;
@@ -1134,14 +1154,22 @@ function showDoneScreen() {
   });
 }
 
+// 中断ボタン
+document.getElementById('btn-stop').addEventListener('click', () => {
+  if (currentIndex >= memes.length) return;
+  showDoneScreen(true);
+});
+
 // Retry
 document.getElementById('btn-retry').addEventListener('click', () => {
-  library = [];
-  skippedList = [];
-  currentIndex = 0;
-  localStorage.removeItem('meme-fortress-library');
-  memes = shuffle(memes);
-
+  const isResume = document.getElementById('btn-retry').dataset.resume === '1';
+  if (!isResume) {
+    library = [];
+    skippedList = [];
+    currentIndex = 0;
+    localStorage.removeItem('meme-fortress-library');
+    memes = shuffle(memes);
+  }
   document.getElementById('done-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   renderCurrentCard();
