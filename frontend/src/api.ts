@@ -1,0 +1,74 @@
+import type { Meme, RevealResponse, SnatchResponse, VoteSyncResponse } from "./types";
+
+declare global {
+  interface Window {
+    __TAURI_INTERNALS__?: unknown;
+  }
+}
+
+const isTauri = () => typeof window !== "undefined" && Boolean(window.__TAURI_INTERNALS__);
+
+async function invokeTauri<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<T>(command, args);
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, {
+    headers: { "Content-Type": "application/json" },
+    ...init,
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `request failed: ${res.status}`);
+  }
+
+  return res.json() as Promise<T>;
+}
+
+export function fetchMemes() {
+  if (isTauri()) {
+    return invokeTauri<Meme[]>("get_memes", { limit: 120 });
+  }
+  return request<Meme[]>("/api/memes?limit=120");
+}
+
+export function createSnatch(meme: Meme, timingScore: number) {
+  const source = meme.platform[0] || "架空SNS";
+  const payload = {
+    meme_id: meme.id,
+    source_area: source,
+    timing_score: timingScore,
+  };
+  if (isTauri()) {
+    return invokeTauri<SnatchResponse>("create_snatch", { payload });
+  }
+  return request<SnatchResponse>("/api/snatches", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function createReveal(snatchId: string, revealedRatio: number) {
+  const payload = {
+    snatch_id: snatchId,
+    revealed_ratio: revealedRatio,
+  };
+  if (isTauri()) {
+    return invokeTauri<RevealResponse>("create_reveal", { payload });
+  }
+  return request<RevealResponse>("/api/reveals", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function syncVotes() {
+  if (isTauri()) {
+    return invokeTauri<VoteSyncResponse>("sync_votes");
+  }
+  return request<VoteSyncResponse>("/api/votes/sync", {
+    method: "POST",
+  });
+}
