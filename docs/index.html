@@ -1188,11 +1188,8 @@ document.getElementById('btn-share').addEventListener('click', () => {
 // ═══════════════════════════════════════════════════
 function submitVote(id, action, name, era) {
   if (!APPS_SCRIPT_URL) return;
-  // no-cors mode では application/json が送れないため text/plain で送信
-  // Apps Script 側は JSON.parse(e.postData.contents) でパース可能
   fetch(APPS_SCRIPT_URL, {
     method: 'POST',
-    mode: 'no-cors',
     headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify({ meme_id: id, action, meme_name: name, era })
   }).catch(() => {});
