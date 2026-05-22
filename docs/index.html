@@ -877,6 +877,8 @@ let isDragging = false;
 let startX = 0;
 let currentX = 0;
 const SWIPE_THRESHOLD = 90;
+const QUIZ_RECENT_KEY = 'meme-fortress-quiz-recent';
+const QUIZ_RECENT_LIMIT = 120;
 
 // ═══════════════════════════════════════════════════
 // ERA → CSS CLASS MAPPING
@@ -901,7 +903,8 @@ async function init() {
   try {
     const res = await fetch('./memes_seed.json');
     const data = await res.json();
-    memes = prioritizeByHistory(data.memes);
+    const quizCount = Math.max(1, Math.ceil(data.memes.length * 0.25));
+    memes = buildQuizSet(data.memes, quizCount);
 
     // Restore library from localStorage
     const saved = localStorage.getItem('meme-fortress-library');
@@ -1260,6 +1263,30 @@ function prioritizeByHistory(allMemes) {
     else recentSeen.push(m);
   }
   return [...shuffle(unseen), ...shuffle(oldSeen), ...shuffle(recentSeen)];
+}
+
+function loadRecentQuizIds() {
+  try {
+    const value = JSON.parse(localStorage.getItem(QUIZ_RECENT_KEY) || '[]');
+    return Array.isArray(value) ? value.filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecentQuizIds(ids) {
+  const compact = ids.slice(-QUIZ_RECENT_LIMIT);
+  localStorage.setItem(QUIZ_RECENT_KEY, JSON.stringify(compact));
+}
+
+function buildQuizSet(allMemes, count) {
+  const history = new Set(loadRecentQuizIds());
+  const ranked = prioritizeByHistory(allMemes);
+  const fresh = ranked.filter(m => !history.has(m.id));
+  const fallback = ranked.filter(m => history.has(m.id));
+  const selected = [...fresh, ...fallback].slice(0, count);
+  saveRecentQuizIds(selected.map(m => m.id));
+  return shuffle(selected);
 }
 
 // ─── BOOT ───
