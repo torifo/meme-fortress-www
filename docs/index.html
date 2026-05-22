@@ -901,7 +901,7 @@ async function init() {
   try {
     const res = await fetch('./memes_seed.json');
     const data = await res.json();
-    memes = shuffle(data.memes);
+    memes = prioritizeByHistory(data.memes);
 
     // Restore library from localStorage
     const saved = localStorage.getItem('meme-fortress-library');
@@ -1053,6 +1053,7 @@ function triggerCollect(card) {
 
   library.push(meme);
   localStorage.setItem('meme-fortress-library', JSON.stringify(library));
+  markSeen(meme.id);
   submitVote(meme.id, 'collect', meme.name, meme.era);
 
   setTimeout(() => advance(), 380);
@@ -1066,6 +1067,7 @@ function triggerSkip(card) {
   showToast('✕ スキップ', 'reject');
 
   skippedList.push(meme);
+  markSeen(meme.id);
   submitVote(meme.id, 'skip', meme.name, meme.era);
 
   setTimeout(() => advance(), 380);
@@ -1169,7 +1171,7 @@ document.getElementById('btn-retry').addEventListener('click', () => {
     skippedList = [];
     currentIndex = 0;
     localStorage.removeItem('meme-fortress-library');
-    memes = shuffle(memes);
+    memes = prioritizeByHistory(memes);
   }
   document.getElementById('done-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
@@ -1226,6 +1228,38 @@ function shuffle(arr) {
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
+}
+
+// 見た履歴: { id: timestamp }
+const SEEN_KEY = 'meme-fortress-seen';
+const RECENT_MS = 1000 * 60 * 60 * 24 * 7; // 7日間は「最近見た」扱い
+
+function loadSeen() {
+  try {
+    return JSON.parse(localStorage.getItem(SEEN_KEY) || '{}');
+  } catch { return {}; }
+}
+
+function markSeen(id) {
+  const seen = loadSeen();
+  seen[id] = Date.now();
+  localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+}
+
+// 未見＞古く見た＞最近見た の順に各ブロック内をランダムシャッフル
+function prioritizeByHistory(allMemes) {
+  const seen = loadSeen();
+  const now = Date.now();
+  const unseen = [];
+  const oldSeen = [];
+  const recentSeen = [];
+  for (const m of allMemes) {
+    const ts = seen[m.id];
+    if (!ts) unseen.push(m);
+    else if (now - ts > RECENT_MS) oldSeen.push(m);
+    else recentSeen.push(m);
+  }
+  return [...shuffle(unseen), ...shuffle(oldSeen), ...shuffle(recentSeen)];
 }
 
 // ─── BOOT ───
