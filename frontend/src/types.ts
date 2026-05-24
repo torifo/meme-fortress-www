@@ -35,3 +35,31 @@ export type VoteSyncResponse = {
   inserted_rows: number;
   total_rows: number;
 };
+
+export type Page = "snatch" | "collection" | "ranking";
+
+export type CollectionMeme = {
+  id: string;
+  name: string;
+  name_en?: string | null;
+  description: string;
+  origin?: string | null;
+  year?: number | null;
+  era?: string | null;
+  platform: string[];
+  context?: string | null;
+  tags: string[];
+  nsfw: boolean;
+  collect_count: number;
+  last_collected_at: string;
+};
+
+export type RankingMeme = {
+  id: string;
+  name: string;
+  era?: string | null;
+  collect_count: number;
+  skip_count: number;
+  total_votes: number;
+  collect_ratio: number;
+};

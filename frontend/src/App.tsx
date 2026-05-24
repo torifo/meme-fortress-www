@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { DatabaseZap, Flame, Gauge, Hand, RefreshCcw, Shield, Sparkles, Zap } from "lucide-react";
-import { createSnatch, fetchMemes, syncVotes } from "./api";
+import { createSnatch, fetchCollection, fetchMemes, syncVotes } from "./api";
 import { CornerRibbon } from "./components/CornerRibbon";
+import { NavBar } from "./components/NavBar";
 import { ScatteredDecorations } from "./components/ScatteredDecorations";
 import { ScratchCard } from "./components/ScratchCard";
-import type { Meme, RevealResponse, SnatchResponse, VoteSyncResponse } from "./types";
+import { CollectionPage } from "./pages/CollectionPage";
+import { RankingPage } from "./pages/RankingPage";
+import type { Meme, Page, RevealResponse, SnatchResponse, VoteSyncResponse } from "./types";
 
 type Phase = "snatch" | "scratch" | "revealed";
 
@@ -14,6 +17,9 @@ export function App() {
   const [memes, setMemes] = useState<Meme[]>([]);
   const [cursor, setCursor] = useState(0);
   const [phase, setPhase] = useState<Phase>("snatch");
+  const [page, setPage] = useState<Page>("snatch");
+  const [unseenCount, setUnseenCount] = useState(0);
+  const [collectionCount, setCollectionCount] = useState(0);
   const [snatch, setSnatch] = useState<SnatchResponse | null>(null);
   const [reveal, setReveal] = useState<RevealResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,10 +29,19 @@ export function App() {
   const [voteSync, setVoteSync] = useState<VoteSyncResponse | null>(null);
 
   useEffect(() => {
-    fetchMemes()
-      .then(setMemes)
+    fetchMemes(true)
+      .then((data) => {
+        setMemes(data);
+        setUnseenCount(data.length);
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    fetchCollection()
+      .then((data) => setCollectionCount(data.length))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -77,6 +92,12 @@ export function App() {
 
   return (
     <main className={burst ? "app-shell is-shaking" : "app-shell"}>
+      <NavBar
+        current={page}
+        onNavigate={setPage}
+        unseenCount={unseenCount}
+        collectionCount={collectionCount}
+      />
       <ScatteredDecorations />
       <section className="topbar">
         <div>
@@ -92,7 +113,9 @@ export function App() {
       {error && <div className="panel error-panel">{error}</div>}
       {loading && <div className="panel loading-panel">ミーム弾薬を装填中...</div>}
 
-      {!loading && !error && (
+      {!loading && !error && page === "collection" && <CollectionPage />}
+      {!loading && !error && page === "ranking" && <RankingPage />}
+      {!loading && !error && page === "snatch" && (
         <div className="game-grid">
           <section className="panel arena impact-lines">
             <CornerRibbon label={phase === "snatch" ? "SNATCH!!" : "OPEN!!"} />
