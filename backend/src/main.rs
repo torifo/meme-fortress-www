@@ -127,6 +127,17 @@ struct CollectionMeme {
 }
 
 #[derive(Debug, Serialize)]
+struct RankingMeme {
+    id: String,
+    name: String,
+    era: Option<String>,
+    collect_count: i64,
+    skip_count: i64,
+    total_votes: i64,
+    collect_ratio: f64,
+}
+
+#[derive(Debug, Serialize)]
 struct HealthResponse {
     ok: bool,
     meme_count: i64,
@@ -160,6 +171,7 @@ async fn main() -> Result<()> {
         .route("/health", get(health))
         .route("/memes", get(list_memes))
         .route("/collection", get(list_collection))
+        .route("/ranking", get(list_ranking))
         .route("/snatches", post(create_snatch))
         .route("/reveals", post(create_reveal))
         .route("/votes/sync", post(sync_votes));
@@ -392,6 +404,51 @@ async fn list_collection(
             nsfw: row.get::<i64, _>("nsfw") != 0,
             collect_count: row.get("collect_count"),
             last_collected_at: row.get("last_collected_at"),
+        })
+        .collect();
+
+    Ok(Json(items))
+}
+
+async fn list_ranking(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<RankingMeme>>, AppError> {
+    let rows = sqlx::query(
+        r#"
+        SELECT
+            m.id, m.name, m.era,
+            COUNT(CASE WHEN vl.action = 'collect' THEN 1 END) as collect_count,
+            COUNT(CASE WHEN vl.action = 'skip' THEN 1 END) as skip_count,
+            COUNT(vl.id) as total_votes
+        FROM memes m
+        LEFT JOIN vote_logs vl ON vl.meme_id = m.id
+        GROUP BY m.id
+        HAVING total_votes > 0
+        ORDER BY collect_count DESC, total_votes DESC
+        LIMIT 200
+        "#,
+    )
+    .fetch_all(&state.db)
+    .await?;
+
+    let items = rows
+        .into_iter()
+        .map(|row| {
+            let collect: i64 = row.get("collect_count");
+            let total: i64 = row.get("total_votes");
+            RankingMeme {
+                id: row.get("id"),
+                name: row.get("name"),
+                era: row.get("era"),
+                collect_count: collect,
+                skip_count: row.get("skip_count"),
+                total_votes: total,
+                collect_ratio: if total > 0 {
+                    collect as f64 / total as f64
+                } else {
+                    0.0
+                },
+            }
         })
         .collect();
 
