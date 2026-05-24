@@ -693,3 +693,55 @@ button {
     display: none;
   }
 }
+
+/* ===== NavBar ===== */
+.navbar {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface, #1a1a2e);
+  border-bottom: 2px solid var(--accent, #e94560);
+}
+
+.nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted, #aaa);
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.15s;
+}
+
+.nav-btn:hover {
+  border-color: var(--accent, #e94560);
+  color: var(--text, #fff);
+}
+
+.nav-btn.active {
+  background: var(--accent, #e94560);
+  color: #fff;
+}
+
+.nav-btn .badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  background: #f5a623;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 900;
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
