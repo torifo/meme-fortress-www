@@ -102,7 +102,7 @@ export function App() {
       <section className="topbar">
         <div>
           <p className="eyebrow">超絶 電脳ミーム要塞</p>
-          <h1>ネットの激流から伝説をブッこ抜け！</h1>
+          <h1>ネットの激流から<wbr />伝説をブッこ抜け！</h1>
         </div>
         <div className="db-badge">
           <Shield size={18} />
