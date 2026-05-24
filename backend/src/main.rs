@@ -132,6 +132,11 @@ async fn main() -> Result<()> {
     migrate(&db).await?;
     seed_memes(&db).await?;
 
+    // 起動時に Google Sheets の vote_logs を非同期で同期（失敗しても続行）
+    if let Err(err) = sync_votes_from_sheet(&db).await {
+        tracing::warn!("startup vote sync failed (non-fatal): {err}");
+    }
+
     let state = AppState { db };
     let api = Router::new()
         .route("/health", get(health))
