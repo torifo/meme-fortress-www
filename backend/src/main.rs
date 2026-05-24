@@ -78,6 +78,7 @@ struct Meme {
 #[derive(Debug, Deserialize)]
 struct MemeQuery {
     limit: Option<i64>,
+    exclude_seen: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -109,6 +110,34 @@ struct RevealResponse {
 }
 
 #[derive(Debug, Serialize)]
+struct CollectionMeme {
+    id: String,
+    name: String,
+    name_en: Option<String>,
+    description: String,
+    origin: Option<String>,
+    year: Option<i64>,
+    era: Option<String>,
+    platform: Vec<String>,
+    context: Option<String>,
+    tags: Vec<String>,
+    nsfw: bool,
+    collect_count: i64,
+    last_collected_at: String,
+}
+
+#[derive(Debug, Serialize)]
+struct RankingMeme {
+    id: String,
+    name: String,
+    era: Option<String>,
+    collect_count: i64,
+    skip_count: i64,
+    total_votes: i64,
+    collect_ratio: f64,
+}
+
+#[derive(Debug, Serialize)]
 struct HealthResponse {
     ok: bool,
     meme_count: i64,
@@ -132,10 +161,17 @@ async fn main() -> Result<()> {
     migrate(&db).await?;
     seed_memes(&db).await?;
 
+    // 起動時に Google Sheets の vote_logs を非同期で同期（失敗しても続行）
+    if let Err(err) = sync_votes_from_sheet(&db).await {
+        tracing::warn!("startup vote sync failed (non-fatal): {err}");
+    }
+
     let state = AppState { db };
     let api = Router::new()
         .route("/health", get(health))
         .route("/memes", get(list_memes))
+        .route("/collection", get(list_collection))
+        .route("/ranking", get(list_ranking))
         .route("/snatches", post(create_snatch))
         .route("/reveals", post(create_reveal))
         .route("/votes/sync", post(sync_votes));
@@ -333,6 +369,92 @@ async fn seed_memes(db: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
+async fn list_collection(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<CollectionMeme>>, AppError> {
+    let rows = sqlx::query(
+        r#"
+        SELECT
+            m.id, m.name, m.name_en, m.description, m.origin, m.year, m.era,
+            m.platform_json, m.context, m.tags_json, m.nsfw,
+            COUNT(vl.id) as collect_count,
+            MAX(vl.voted_at) as last_collected_at
+        FROM memes m
+        JOIN vote_logs vl ON vl.meme_id = m.id AND vl.action = 'collect'
+        GROUP BY m.id
+        ORDER BY collect_count DESC, m.name
+        "#,
+    )
+    .fetch_all(&state.db)
+    .await?;
+
+    let items = rows
+        .into_iter()
+        .map(|row| CollectionMeme {
+            id: row.get("id"),
+            name: row.get("name"),
+            name_en: row.get("name_en"),
+            description: row.get("description"),
+            origin: row.get("origin"),
+            year: row.get("year"),
+            era: row.get("era"),
+            platform: parse_json_array(row.get("platform_json")),
+            context: row.get("context"),
+            tags: parse_json_array(row.get("tags_json")),
+            nsfw: row.get::<i64, _>("nsfw") != 0,
+            collect_count: row.get("collect_count"),
+            last_collected_at: row.get("last_collected_at"),
+        })
+        .collect();
+
+    Ok(Json(items))
+}
+
+async fn list_ranking(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<RankingMeme>>, AppError> {
+    let rows = sqlx::query(
+        r#"
+        SELECT
+            m.id, m.name, m.era,
+            COUNT(CASE WHEN vl.action = 'collect' THEN 1 END) as collect_count,
+            COUNT(CASE WHEN vl.action = 'skip' THEN 1 END) as skip_count,
+            COUNT(vl.id) as total_votes
+        FROM memes m
+        LEFT JOIN vote_logs vl ON vl.meme_id = m.id
+        GROUP BY m.id
+        HAVING total_votes > 0
+        ORDER BY collect_count DESC, total_votes DESC
+        LIMIT 200
+        "#,
+    )
+    .fetch_all(&state.db)
+    .await?;
+
+    let items = rows
+        .into_iter()
+        .map(|row| {
+            let collect: i64 = row.get("collect_count");
+            let total: i64 = row.get("total_votes");
+            RankingMeme {
+                id: row.get("id"),
+                name: row.get("name"),
+                era: row.get("era"),
+                collect_count: collect,
+                skip_count: row.get("skip_count"),
+                total_votes: total,
+                collect_ratio: if total > 0 {
+                    collect as f64 / total as f64
+                } else {
+                    0.0
+                },
+            }
+        })
+        .collect();
+
+    Ok(Json(items))
+}
+
 async fn health(State(state): State<AppState>) -> Result<Json<HealthResponse>, AppError> {
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM memes")
         .fetch_one(&state.db)
@@ -349,16 +471,26 @@ async fn list_memes(
     Query(query): Query<MemeQuery>,
 ) -> Result<Json<Vec<Meme>>, AppError> {
     let limit = query.limit.unwrap_or(96).clamp(1, 500);
-    let rows = sqlx::query(
-        r#"
-        SELECT * FROM memes
-        ORDER BY RANDOM()
-        LIMIT ?
-        "#,
-    )
-    .bind(limit)
-    .fetch_all(&state.db)
-    .await?;
+    let exclude_seen = query.exclude_seen.unwrap_or(false);
+
+    let rows = if exclude_seen {
+        sqlx::query(
+            r#"
+            SELECT m.* FROM memes m
+            WHERE m.id NOT IN (SELECT DISTINCT meme_id FROM vote_logs)
+            ORDER BY RANDOM()
+            LIMIT ?
+            "#,
+        )
+        .bind(limit)
+        .fetch_all(&state.db)
+        .await?
+    } else {
+        sqlx::query("SELECT * FROM memes ORDER BY RANDOM() LIMIT ?")
+            .bind(limit)
+            .fetch_all(&state.db)
+            .await?
+    };
 
     Ok(Json(rows.into_iter().map(row_to_meme).collect()))
 }

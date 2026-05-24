@@ -77,6 +77,34 @@ struct SnatchResponse {
     meme: Meme,
 }
 
+#[derive(Debug, Serialize)]
+struct CollectionMeme {
+    id: String,
+    name: String,
+    name_en: Option<String>,
+    description: String,
+    origin: Option<String>,
+    year: Option<i64>,
+    era: Option<String>,
+    platform: Vec<String>,
+    context: Option<String>,
+    tags: Vec<String>,
+    nsfw: bool,
+    collect_count: i64,
+    last_collected_at: String,
+}
+
+#[derive(Debug, Serialize)]
+struct RankingMeme {
+    id: String,
+    name: String,
+    era: Option<String>,
+    collect_count: i64,
+    skip_count: i64,
+    total_votes: i64,
+    collect_ratio: f64,
+}
+
 #[derive(Debug, Deserialize)]
 struct RevealRequest {
     snatch_id: String,
@@ -111,21 +139,121 @@ pub fn run() {
             get_memes,
             create_snatch,
             create_reveal,
-            sync_votes
+            sync_votes,
+            get_collection,
+            get_ranking
         ])
         .run(tauri::generate_context!())
         .expect("failed to run tauri app");
 }
 
 #[tauri::command]
-async fn get_memes(state: State<'_, AppState>, limit: Option<i64>) -> Result<Vec<Meme>, String> {
-    let rows = sqlx::query("SELECT * FROM memes ORDER BY RANDOM() LIMIT ?")
-        .bind(limit.unwrap_or(120).clamp(1, 500))
+async fn get_memes(
+    state: State<'_, AppState>,
+    limit: Option<i64>,
+    exclude_seen: Option<bool>,
+) -> Result<Vec<Meme>, String> {
+    let limit = limit.unwrap_or(96).clamp(1, 500);
+    let exclude = exclude_seen.unwrap_or(false);
+
+    let rows = if exclude {
+        sqlx::query(
+            "SELECT m.* FROM memes m WHERE m.id NOT IN (SELECT DISTINCT meme_id FROM vote_logs) ORDER BY RANDOM() LIMIT ?",
+        )
+        .bind(limit)
         .fetch_all(&state.db)
         .await
-        .map_err(to_message)?;
+    } else {
+        sqlx::query("SELECT * FROM memes ORDER BY RANDOM() LIMIT ?")
+            .bind(limit)
+            .fetch_all(&state.db)
+            .await
+    }
+    .map_err(|e| e.to_string())?;
 
     Ok(rows.into_iter().map(row_to_meme).collect())
+}
+
+#[tauri::command]
+async fn get_collection(state: State<'_, AppState>) -> Result<Vec<CollectionMeme>, String> {
+    let rows = sqlx::query(
+        r#"
+        SELECT
+            m.id, m.name, m.name_en, m.description, m.origin, m.year, m.era,
+            m.platform_json, m.context, m.tags_json, m.nsfw,
+            COUNT(vl.id) as collect_count,
+            MAX(vl.voted_at) as last_collected_at
+        FROM memes m
+        JOIN vote_logs vl ON vl.meme_id = m.id AND vl.action = 'collect'
+        GROUP BY m.id
+        ORDER BY collect_count DESC, m.name
+        "#,
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(rows
+        .into_iter()
+        .map(|row| CollectionMeme {
+            id: row.get("id"),
+            name: row.get("name"),
+            name_en: row.get("name_en"),
+            description: row.get("description"),
+            origin: row.get("origin"),
+            year: row.get("year"),
+            era: row.get("era"),
+            platform: parse_json_array(row.get("platform_json")),
+            context: row.get("context"),
+            tags: parse_json_array(row.get("tags_json")),
+            nsfw: row.get::<i64, _>("nsfw") != 0,
+            collect_count: row.get("collect_count"),
+            last_collected_at: row.get("last_collected_at"),
+        })
+        .collect())
+}
+
+#[tauri::command]
+async fn get_ranking(state: State<'_, AppState>) -> Result<Vec<RankingMeme>, String> {
+    let rows = sqlx::query(
+        r#"
+        SELECT
+            m.id, m.name, m.era,
+            COUNT(CASE WHEN vl.action = 'collect' THEN 1 END) as collect_count,
+            COUNT(CASE WHEN vl.action = 'skip' THEN 1 END) as skip_count,
+            COUNT(vl.id) as total_votes
+        FROM memes m
+        LEFT JOIN vote_logs vl ON vl.meme_id = m.id
+        GROUP BY m.id
+        HAVING total_votes > 0
+        ORDER BY collect_count DESC, total_votes DESC
+        LIMIT 200
+        "#,
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(rows
+        .into_iter()
+        .map(|row| {
+            let collect: i64 = row.get("collect_count");
+            let total: i64 = row.get("total_votes");
+            RankingMeme {
+                id: row.get("id"),
+                name: row.get("name"),
+                era: row.get("era"),
+                collect_count: collect,
+                skip_count: row.get("skip_count"),
+                total_votes: total,
+                collect_ratio: if total > 0 {
+                    collect as f64 / total as f64
+                } else {
+                    0.0
+                },
+            }
+        })
+        .collect())
 }
 
 #[tauri::command]
