@@ -78,6 +78,7 @@ struct Meme {
 #[derive(Debug, Deserialize)]
 struct MemeQuery {
     limit: Option<i64>,
+    exclude_seen: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -354,16 +355,26 @@ async fn list_memes(
     Query(query): Query<MemeQuery>,
 ) -> Result<Json<Vec<Meme>>, AppError> {
     let limit = query.limit.unwrap_or(96).clamp(1, 500);
-    let rows = sqlx::query(
-        r#"
-        SELECT * FROM memes
-        ORDER BY RANDOM()
-        LIMIT ?
-        "#,
-    )
-    .bind(limit)
-    .fetch_all(&state.db)
-    .await?;
+    let exclude_seen = query.exclude_seen.unwrap_or(false);
+
+    let rows = if exclude_seen {
+        sqlx::query(
+            r#"
+            SELECT m.* FROM memes m
+            WHERE m.id NOT IN (SELECT DISTINCT meme_id FROM vote_logs)
+            ORDER BY RANDOM()
+            LIMIT ?
+            "#,
+        )
+        .bind(limit)
+        .fetch_all(&state.db)
+        .await?
+    } else {
+        sqlx::query("SELECT * FROM memes ORDER BY RANDOM() LIMIT ?")
+            .bind(limit)
+            .fetch_all(&state.db)
+            .await?
+    };
 
     Ok(Json(rows.into_iter().map(row_to_meme).collect()))
 }
