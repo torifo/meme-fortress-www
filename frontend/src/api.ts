@@ -1,4 +1,4 @@
-import type { Meme, RevealResponse, SnatchResponse, VoteSyncResponse } from "./types";
+import type { CollectionMeme, Meme, RankingMeme, RevealResponse, SnatchResponse, VoteSyncResponse } from "./types";
 
 declare global {
   interface Window {
@@ -27,11 +27,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export function fetchMemes() {
+export function fetchMemes(excludeSeen = false) {
+  const limit = 120;
   if (isTauri()) {
-    return invokeTauri<Meme[]>("get_memes", { limit: 120 });
+    return invokeTauri<Meme[]>("get_memes", { limit, excludeSeen });
   }
-  return request<Meme[]>("/api/memes?limit=120");
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (excludeSeen) params.set("exclude_seen", "true");
+  return request<Meme[]>(`/api/memes?${params}`);
 }
 
 export function createSnatch(meme: Meme, timingScore: number) {
@@ -71,4 +74,18 @@ export function syncVotes() {
   return request<VoteSyncResponse>("/api/votes/sync", {
     method: "POST",
   });
+}
+
+export function fetchCollection() {
+  if (isTauri()) {
+    return invokeTauri<CollectionMeme[]>("get_collection");
+  }
+  return request<CollectionMeme[]>("/api/collection");
+}
+
+export function fetchRanking() {
+  if (isTauri()) {
+    return invokeTauri<RankingMeme[]>("get_ranking");
+  }
+  return request<RankingMeme[]>("/api/ranking");
 }
