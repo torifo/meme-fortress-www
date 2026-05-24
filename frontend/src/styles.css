@@ -90,6 +90,9 @@ button {
   -webkit-text-stroke: 3px var(--outline);
   paint-order: stroke fill;
   text-shadow: 5px 5px 0 var(--primary), 8px 8px 0 var(--outline);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  line-break: strict;
 }
 
 .eyebrow {
@@ -825,21 +828,26 @@ button {
 }
 
 .collection-card h3 {
+  font-family: var(--font-sans);
   font-size: 1.05rem;
   font-weight: 900;
   margin: 0;
+  color: var(--text, #fff);
 }
 
 .name-en {
+  font-family: var(--font-sans);
   font-size: 0.8rem;
   color: var(--text-muted, #aaa);
   margin: 0;
 }
 
 .meme-desc {
+  font-family: var(--font-sans);
   font-size: 0.85rem;
   line-height: 1.5;
   margin: 0;
+  color: var(--text, #f3f3f3);
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -959,9 +967,11 @@ button {
 }
 
 .ranking-info h3 {
+  font-family: var(--font-sans);
   font-size: 0.95rem;
   font-weight: 900;
   margin: 0 0 0.15rem;
+  color: var(--text, #fff);
 }
 
 .meme-era {
