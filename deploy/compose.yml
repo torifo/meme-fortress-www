@@ -3,14 +3,24 @@ services:
     image: ghcr.io/torifo/meme-fortress:latest
     container_name: meme-fortress
     restart: unless-stopped
-    # bind to localhost only — nginx reverse-proxies in front
-    ports:
-      - "127.0.0.1:8787:8787"
+    networks:
+      - default
+      - global-proxy-network
+    expose:
+      - "8787"
     volumes:
       - data:/app/data
     environment:
       - RUST_LOG=info
-      # - SHEET_VOTES_CSV_URL=<override here if needed>
+      # nginx-proxy / acme-companion auto-routing
+      - VIRTUAL_HOST=meme-fortress-www.riumu.net
+      - VIRTUAL_PORT=8787
+      - LETSENCRYPT_HOST=meme-fortress-www.riumu.net
+      - LETSENCRYPT_EMAIL=akito.shoji@geniee.co.jp
+
+networks:
+  global-proxy-network:
+    external: true
 
 volumes:
   data:

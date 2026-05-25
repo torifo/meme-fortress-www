@@ -1,26 +1,28 @@
-# VPS 簡易デプロイ手順（GHCR + Docker Compose）
+# VPS 簡易デプロイ手順（GHCR + nginx-proxy）
 
 > ビルドは GitHub Actions（`.github/workflows/build-image.yml`）が
-> `ghcr.io/torifo/meme-fortress:latest` を生成する。VPS では pull して
-> docker compose で起動するだけ。
+> `ghcr.io/torifo/meme-fortress:latest` を生成する。VPS では既存の
+> `global-nginx-proxy` + `acme-companion` 構成に乗せるだけ。
+> `VIRTUAL_HOST` / `LETSENCRYPT_HOST` を環境変数で渡せば HTTPS 含め自動。
 
 **前提:**
 - ホスト: `x162-43-88-107` (`meme-fortress-www.riumu.net`)
 - パス: `/home/ubuntu/Web/meme-fortress`
-- Docker + Docker Compose v2 + `docker login ghcr.io` 済み
-- nginx 導入済み（既存サイトと共存）
+- 既存の `global-nginx-proxy` (`nginxproxy/nginx-proxy`) と
+  `global-letsencrypt` (`nginxproxy/acme-companion`) が稼働中
+- `global-proxy-network` という external ネットワークが存在
+- `docker login ghcr.io` 済み
 
 ---
 
-## 1. リポジトリ取得
+## 1. リポジトリ取得 / 更新
 
 ```bash
 cd /home/ubuntu/Web
-git clone https://github.com/torifo/meme-fortress-www.git meme-fortress
+git clone https://github.com/torifo/meme-fortress-www.git meme-fortress  # 初回のみ
 cd meme-fortress
+git pull
 ```
-
-リポジトリは `deploy/compose.yml` と `deploy/meme-fortress.service` のみを使用する。
 
 ## 2. systemd で起動
 
@@ -32,36 +34,27 @@ sudo systemctl status meme-fortress --no-pager
 ```
 
 systemd が `docker compose pull && docker compose up -d` を実行する。
+コンテナは `global-proxy-network` に参加し、nginx-proxy が
+`meme-fortress-www.riumu.net` 宛トラフィックをコンテナの 8787 に振る。
+acme-companion が初回起動時に Let's Encrypt 証明書を取得する。
 
 ログ:
 ```bash
 docker logs -f meme-fortress
-# or
 sudo journalctl -u meme-fortress -f
 ```
 
-ヘルスチェック:
+ヘルスチェック（コンテナ内ポートに直接）:
 ```bash
-curl -s http://127.0.0.1:8787/api/health
-# {"ok":true,"meme_count":301}
+docker exec meme-fortress wget -qO- http://127.0.0.1:8787/api/health
 ```
 
-## 3. nginx + Let's Encrypt
-
+外部から（証明書発行後）:
 ```bash
-sudo cp /home/ubuntu/Web/meme-fortress/deploy/nginx-site.conf \
-        /etc/nginx/sites-available/meme-fortress-www.riumu.net
-sudo ln -s /etc/nginx/sites-available/meme-fortress-www.riumu.net \
-           /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-
-sudo certbot --nginx -d meme-fortress-www.riumu.net \
-  --non-interactive --agree-tos -m akito.shoji@geniee.co.jp --redirect
+curl -sf https://meme-fortress-www.riumu.net/api/health
 ```
 
-`https://meme-fortress-www.riumu.net/` で開通。
-
-## 4. 更新（再デプロイ）
+## 3. 更新（再デプロイ）
 
 main に push すると GitHub Actions が新しい `:latest` を push する。
 VPS では:
@@ -77,7 +70,7 @@ cd /home/ubuntu/Web/meme-fortress/deploy
 docker compose pull && docker compose up -d
 ```
 
-## 5. ロールバック
+## 4. ロールバック
 
 ```bash
 cd /home/ubuntu/Web/meme-fortress/deploy
@@ -87,18 +80,17 @@ $EDITOR compose.yml
 docker compose up -d
 ```
 
-## 6. データ永続化
+## 5. データ永続化
 
-SQLite は名前付きボリューム `meme-fortress_data` に保存される。
-バックアップ:
+SQLite は名前付きボリューム `deploy_data` に保存される。バックアップ:
 ```bash
-docker run --rm -v meme-fortress_data:/data -v $PWD:/backup debian:bookworm-slim \
+docker run --rm -v deploy_data:/data -v $PWD:/backup debian:bookworm-slim \
   tar czf /backup/meme-fortress-data-$(date +%Y%m%d).tar.gz -C /data .
 ```
 
-## 7. 次サーバーへの移行
+## 6. 次サーバーへの移行
 
 1. 旧サーバーで上記バックアップを取得
-2. 新サーバーで `docker volume create meme-fortress_data` してから tar 展開
-3. DNS A レコードを新ホストへ
-4. 同じ手順を新サーバーで実行
+2. 新サーバーで `global-nginx-proxy` 系を立ち上げ、同様に compose を起動
+3. ボリューム `deploy_data` に旧データを展開
+4. DNS A レコードを新ホストへ
