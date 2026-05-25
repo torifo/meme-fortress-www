@@ -1,9 +1,17 @@
 # VPS 簡易デプロイ手順（GHCR + nginx-proxy）
 
 > ビルドは GitHub Actions（`.github/workflows/build-image.yml`）が
-> `ghcr.io/torifo/meme-fortress:latest` を生成する。VPS では既存の
-> `global-nginx-proxy` + `acme-companion` 構成に乗せるだけ。
+> 2 イメージを並列で生成する:
+> - `ghcr.io/torifo/meme-fortress-backend:latest`（axum + SQLite）
+> - `ghcr.io/torifo/meme-fortress-frontend:latest`（nginx + SPA static）
+>
+> VPS では既存の `global-nginx-proxy` + `acme-companion` 構成に乗せるだけ。
 > `VIRTUAL_HOST` / `LETSENCRYPT_HOST` を環境変数で渡せば HTTPS 含め自動。
+>
+> | ドメイン | コンテナ | 内容 |
+> | --- | --- | --- |
+> | `meme-fortress-www.riumu.net` | `meme-fortress-frontend` | React SPA (静的) |
+> | `api.meme-fortress.riumu.net`  | `meme-fortress-backend`  | axum API + SQLite |
 
 **前提:**
 - ホスト: `x162-43-88-107` (`meme-fortress-www.riumu.net`)

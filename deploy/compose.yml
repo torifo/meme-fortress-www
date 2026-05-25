@@ -1,7 +1,7 @@
 services:
-  app:
-    image: ghcr.io/torifo/meme-fortress:latest
-    container_name: meme-fortress
+  backend:
+    image: ghcr.io/torifo/meme-fortress-backend:latest
+    container_name: meme-fortress-backend
     restart: unless-stopped
     networks:
       - default
@@ -12,9 +12,22 @@ services:
       - data:/app/data
     environment:
       - RUST_LOG=info
-      # nginx-proxy / acme-companion auto-routing
-      - VIRTUAL_HOST=meme-fortress-www.riumu.net
+      - VIRTUAL_HOST=api.meme-fortress.riumu.net
       - VIRTUAL_PORT=8787
+      - LETSENCRYPT_HOST=api.meme-fortress.riumu.net
+      - LETSENCRYPT_EMAIL=akito.shoji@geniee.co.jp
+
+  frontend:
+    image: ghcr.io/torifo/meme-fortress-frontend:latest
+    container_name: meme-fortress-frontend
+    restart: unless-stopped
+    networks:
+      - global-proxy-network
+    expose:
+      - "80"
+    environment:
+      - VIRTUAL_HOST=meme-fortress-www.riumu.net
+      - VIRTUAL_PORT=80
       - LETSENCRYPT_HOST=meme-fortress-www.riumu.net
       - LETSENCRYPT_EMAIL=akito.shoji@geniee.co.jp
 
