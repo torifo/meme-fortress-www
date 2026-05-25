@@ -196,7 +196,18 @@ async fn main() -> Result<()> {
         .ok()
         .and_then(|value| value.parse::<u16>().ok())
         .unwrap_or(8787);
-    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    let host: [u8; 4] = env::var("BIND_HOST")
+        .ok()
+        .and_then(|value| {
+            let parts: Vec<u8> = value.split('.').filter_map(|p| p.parse().ok()).collect();
+            if parts.len() == 4 {
+                Some([parts[0], parts[1], parts[2], parts[3]])
+            } else {
+                None
+            }
+        })
+        .unwrap_or([0, 0, 0, 0]);
+    let addr = SocketAddr::from((host, port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
 
     tracing::info!("meme fortress backend listening on http://{addr}");
