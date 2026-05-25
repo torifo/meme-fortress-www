@@ -9,7 +9,8 @@ COPY frontend/ ./
 RUN npm run build
 
 # ---- Backend build ----
-FROM rust:1.83-slim-bookworm AS backend
+# edition2024 requires Rust >= 1.85; use latest stable.
+FROM rust:slim-bookworm AS backend
 RUN apt-get update \
     && apt-get install -y --no-install-recommends pkg-config libssl-dev ca-certificates \
     && rm -rf /var/lib/apt/lists/*
