@@ -1,0 +1,16 @@
+services:
+  app:
+    image: ghcr.io/torifo/meme-fortress:latest
+    container_name: meme-fortress
+    restart: unless-stopped
+    # bind to localhost only — nginx reverse-proxies in front
+    ports:
+      - "127.0.0.1:8787:8787"
+    volumes:
+      - data:/app/data
+    environment:
+      - RUST_LOG=info
+      # - SHEET_VOTES_CSV_URL=<override here if needed>
+
+volumes:
+  data:

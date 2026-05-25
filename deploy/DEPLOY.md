@@ -1,83 +1,52 @@
-# VPS 簡易デプロイ手順
+# VPS 簡易デプロイ手順（GHCR + Docker Compose）
 
-> 一時運用前提。画像導入と DB 変更で別サーバーに移すので、ここでは
-> 「git clone → cargo build → systemd → nginx + certbot」の最短経路だけ。
+> ビルドは GitHub Actions（`.github/workflows/build-image.yml`）が
+> `ghcr.io/torifo/meme-fortress:latest` を生成する。VPS では pull して
+> docker compose で起動するだけ。
 
 **前提:**
-- ホスト: `x162-43-88-107` (`meme-fortress-www.riumu.net` の A レコードが向いている)
+- ホスト: `x162-43-88-107` (`meme-fortress-www.riumu.net`)
 - パス: `/home/ubuntu/Web/meme-fortress`
-- OS: Ubuntu（root か sudo 可能ユーザー）
+- Docker + Docker Compose v2 + `docker login ghcr.io` 済み
+- nginx 導入済み（既存サイトと共存）
 
 ---
 
-## 1. 必要パッケージのインストール
+## 1. リポジトリ取得
 
 ```bash
-sudo apt update
-sudo apt install -y build-essential pkg-config libssl-dev curl git nginx
-# Rust（rustup）
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-. "$HOME/.cargo/env"
-# Node.js 20（NodeSource）
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
-```
-
-## 2. リポジトリ取得
-
-```bash
-sudo mkdir -p /home/ubuntu/Web
-sudo chown ubuntu:ubuntu /home/ubuntu/Web
 cd /home/ubuntu/Web
-git clone git@github.com:torifo/meme-fortress-www.git meme-fortress
+git clone https://github.com/torifo/meme-fortress-www.git meme-fortress
 cd meme-fortress
 ```
 
-（SSH 鍵が無ければ `https://github.com/...` でも可）
+リポジトリは `deploy/compose.yml` と `deploy/meme-fortress.service` のみを使用する。
 
-## 3. ビルド
-
-```bash
-cd /home/ubuntu/Web/meme-fortress
-# フロントエンド（dist/ が backend のフォールバック配信先）
-cd frontend && npm install && npm run build && cd ..
-# バックエンド（release）
-cargo build --release -p meme-fortress-backend
-```
-
-> **注意:** バックエンドは `env!("CARGO_MANIFEST_DIR")` を元に
-> `docs/memes_seed.json`、`data/`、`frontend/dist` を解決するため、
-> **必ず VPS 上でビルドする**こと。ローカルでビルドしたバイナリを
-> scp してもパス解決が壊れる。
-
-## 4. データディレクトリ
-
-`data/meme-fortress.sqlite` は初回起動時に自動生成される。
-起動時に Google Sheets から vote_logs を自動同期する（commit `7085df8`）。
-
-任意で `SHEET_VOTES_CSV_URL` 環境変数で別の Sheets を指す事も可能。
-
-## 5. systemd 起動
+## 2. systemd で起動
 
 ```bash
 sudo cp /home/ubuntu/Web/meme-fortress/deploy/meme-fortress.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now meme-fortress
-sudo systemctl status meme-fortress
+sudo systemctl status meme-fortress --no-pager
 ```
+
+systemd が `docker compose pull && docker compose up -d` を実行する。
 
 ログ:
 ```bash
+docker logs -f meme-fortress
+# or
 sudo journalctl -u meme-fortress -f
 ```
 
-確認:
+ヘルスチェック:
 ```bash
 curl -s http://127.0.0.1:8787/api/health
 # {"ok":true,"meme_count":301}
 ```
 
-## 6. nginx + Let's Encrypt
+## 3. nginx + Let's Encrypt
 
 ```bash
 sudo cp /home/ubuntu/Web/meme-fortress/deploy/nginx-site.conf \
@@ -86,38 +55,50 @@ sudo ln -s /etc/nginx/sites-available/meme-fortress-www.riumu.net \
            /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 
-# 80 番が通った事を確認後、certbot で HTTPS
-sudo apt install -y certbot python3-certbot-nginx
 sudo certbot --nginx -d meme-fortress-www.riumu.net \
-  --non-interactive --agree-tos -m akito.shoji@geniee.co.jp \
-  --redirect
+  --non-interactive --agree-tos -m akito.shoji@geniee.co.jp --redirect
 ```
 
-完了後 `https://meme-fortress-www.riumu.net/` で開ける。
+`https://meme-fortress-www.riumu.net/` で開通。
 
-## 7. 更新（再デプロイ）
+## 4. 更新（再デプロイ）
+
+main に push すると GitHub Actions が新しい `:latest` を push する。
+VPS では:
 
 ```bash
-cd /home/ubuntu/Web/meme-fortress
-git pull
-cd frontend && npm install && npm run build && cd ..
-cargo build --release -p meme-fortress-backend
 sudo systemctl restart meme-fortress
+# 内部で pull → up -d が走る
 ```
 
-## 8. ロールバック
+または手動:
+```bash
+cd /home/ubuntu/Web/meme-fortress/deploy
+docker compose pull && docker compose up -d
+```
 
-systemd を止めて `git checkout <前のSHA>` → 再ビルド → 再起動。
+## 5. ロールバック
 
 ```bash
-sudo systemctl stop meme-fortress
-git checkout <SHA>
-cargo build --release -p meme-fortress-backend
-sudo systemctl start meme-fortress
+cd /home/ubuntu/Web/meme-fortress/deploy
+# compose.yml の image タグを sha 指定に差し替えて up
+# 例: ghcr.io/torifo/meme-fortress:<前のSHA>
+$EDITOR compose.yml
+docker compose up -d
 ```
 
-## 移行時メモ（次サーバーへ）
+## 6. データ永続化
 
-- `data/meme-fortress.sqlite` を tar で持っていけば voted_logs と memes が両方移る
-- 画像対応 + DB を変える際は `docs/tech.md` のフェーズ 2（SurrealDB + S3/R2）へ
-- ドメインは A レコードを新サーバーに向けるだけ
+SQLite は名前付きボリューム `meme-fortress_data` に保存される。
+バックアップ:
+```bash
+docker run --rm -v meme-fortress_data:/data -v $PWD:/backup debian:bookworm-slim \
+  tar czf /backup/meme-fortress-data-$(date +%Y%m%d).tar.gz -C /data .
+```
+
+## 7. 次サーバーへの移行
+
+1. 旧サーバーで上記バックアップを取得
+2. 新サーバーで `docker volume create meme-fortress_data` してから tar 展開
+3. DNS A レコードを新ホストへ
+4. 同じ手順を新サーバーで実行
