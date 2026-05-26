@@ -30,9 +30,16 @@ export function App() {
 
   useEffect(() => {
     fetchMemes(true)
-      .then((data) => {
-        setMemes(data);
-        setUnseenCount(data.length);
+      .then(async (unseen) => {
+        if (unseen.length > 0) {
+          setMemes(unseen);
+          setUnseenCount(unseen.length);
+          return;
+        }
+        // 全ミームを既に見ている場合は全件にフォールバックしてゲームを継続可能にする
+        const all = await fetchMemes(false);
+        setMemes(all);
+        setUnseenCount(0);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
