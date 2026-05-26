@@ -14,6 +14,7 @@ import type { Meme, Page, RevealResponse, SnatchResponse, VoteSyncResponse } fro
 type Phase = "snatch" | "scratch" | "revealed";
 
 const AREA_NAMES = ["Xの樹海", "インスタ山脈", "TikTok舞台", "Facebook古戦場"];
+const PAGE_ORDER: Page[] = ["snatch", "collection", "ranking"];
 
 export function App() {
   const [memes, setMemes] = useState<Meme[]>([]);
@@ -113,7 +114,7 @@ export function App() {
         unseenCount={unseenCount}
         collectionCount={collectionCount}
       />
-      <PageHaze trigger={page} />
+      <PageHaze value={PAGE_ORDER.indexOf(page)} />
       <ScatteredDecorations />
       <section className="topbar">
         <div>

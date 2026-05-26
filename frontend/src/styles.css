@@ -1355,18 +1355,33 @@ button {
   top: 0;
   bottom: 0;
   width: 55vw;
+  filter: blur(8px);
+}
+
+.page-haze-ltr .page-haze-streak {
   left: -60vw;
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(255, 255, 255, 0.0) 10%,
     rgba(255, 245, 200, 0.55) 45%,
     rgba(255, 255, 255, 0.85) 55%,
     rgba(255, 23, 68, 0.35) 70%,
     transparent 100%
   );
-  filter: blur(8px);
-  animation: hazeStreak 620ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: hazeStreakLtr 620ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.page-haze-rtl .page-haze-streak {
+  left: 100vw;
+  background: linear-gradient(
+    270deg,
+    transparent 0%,
+    rgba(255, 245, 200, 0.55) 45%,
+    rgba(255, 255, 255, 0.85) 55%,
+    rgba(101, 31, 255, 0.35) 70%,
+    transparent 100%
+  );
+  animation: hazeStreakRtl 620ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 @keyframes hazeBlur {
@@ -1381,7 +1396,7 @@ button {
   }
 }
 
-@keyframes hazeStreak {
+@keyframes hazeStreakLtr {
   0% {
     left: -60vw;
     opacity: 0;
@@ -1391,6 +1406,20 @@ button {
   }
   100% {
     left: 130vw;
+    opacity: 0;
+  }
+}
+
+@keyframes hazeStreakRtl {
+  0% {
+    left: 100vw;
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    left: -90vw;
     opacity: 0;
   }
 }
