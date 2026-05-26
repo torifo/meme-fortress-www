@@ -34,6 +34,19 @@
   box-sizing: border-box;
 }
 
+::selection {
+  background: var(--primary);
+  color: #fff;
+  text-shadow: none;
+  -webkit-text-stroke: 0;
+}
+
+::-moz-selection {
+  background: var(--primary);
+  color: #fff;
+  text-shadow: none;
+}
+
 html,
 body,
 #root {
@@ -787,10 +800,15 @@ button {
   transition: all 0.15s;
 }
 
-.era-tab.active,
 .era-tab:hover {
-  border-color: var(--accent, #e94560);
-  color: var(--text, #fff);
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.era-tab.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
 }
 
 .era-count {
@@ -926,10 +944,15 @@ button {
   transition: all 0.15s;
 }
 
-.sort-btn.active,
 .sort-btn:hover {
-  border-color: var(--accent, #e94560);
-  color: var(--text, #fff);
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.sort-btn.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
 }
 
 .ranking-list {
