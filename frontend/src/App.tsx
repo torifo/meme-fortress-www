@@ -66,7 +66,7 @@ export function App() {
   const activeMeme = memes[cursor];
   const feed = useMemo(() => {
     if (!memes.length) return [];
-    return Array.from({ length: 4 }, (_, index) => memes[(cursor + index) % memes.length]);
+    return Array.from({ length: 2 }, (_, index) => memes[(cursor + index) % memes.length]);
   }, [cursor, memes]);
 
   const handleSnatch = async () => {
