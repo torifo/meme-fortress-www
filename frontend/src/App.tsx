@@ -4,6 +4,7 @@ import { createSnatch, fetchCollection, fetchMemes, syncVotes } from "./api";
 import { CornerRibbon } from "./components/CornerRibbon";
 import { ImpactFX, useImpactFX } from "./components/ImpactFX";
 import { NavBar } from "./components/NavBar";
+import { PageHaze } from "./components/PageHaze";
 import { ScatteredDecorations } from "./components/ScatteredDecorations";
 import { ScratchCard } from "./components/ScratchCard";
 import { CollectionPage } from "./pages/CollectionPage";
@@ -112,6 +113,7 @@ export function App() {
         unseenCount={unseenCount}
         collectionCount={collectionCount}
       />
+      <PageHaze trigger={page} />
       <ScatteredDecorations />
       <section className="topbar">
         <div>

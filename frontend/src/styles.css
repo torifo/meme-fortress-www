@@ -1203,14 +1203,27 @@ button {
 }
 
 .impact-fx-rubble .impact-particle {
-  --distance: 70px;
-  --size: 6px;
+  --distance: 95px;
+  --size: 10px;
   --color: #6b5a4a;
+  border-radius: 2px 5px 3px 4px;
+  animation: rubbleFly 0.9s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
 }
 
-.impact-fx-rubble .impact-particle:nth-child(even) {
-  --color: #d4c4a8;
-  --size: 4px;
+.impact-fx-rubble .impact-particle:nth-child(3n) {
+  --color: #4a3f33;
+  --size: 13px;
+  border-radius: 4px 2px 6px 3px;
+}
+
+.impact-fx-rubble .impact-particle:nth-child(3n + 1) {
+  --color: #c7b393;
+  --size: 6px;
+}
+
+.impact-fx-rubble .impact-particle:nth-child(3n + 2) {
+  --color: #8a7660;
+  --size: 8px;
 }
 
 @keyframes impactFlash {
@@ -1257,5 +1270,133 @@ button {
   .fx-button:active,
   .fx-cannon-recoil:active {
     transform: none;
+  }
+}
+
+/* ===== Impact FX additions: rubble gravity + cannon focus lines ===== */
+
+/* 岩崩れ：放射 + 重力で下に落ちながら回転 */
+@keyframes rubbleFly {
+  0% {
+    transform: rotate(var(--angle)) translateX(0) rotate(calc(var(--angle) * -1)) scale(0.55) rotate(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  55% {
+    transform: rotate(var(--angle)) translateX(calc(var(--distance) * 0.85)) rotate(calc(var(--angle) * -1)) scale(1)
+      rotate(calc(var(--spin) * 0.6));
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(var(--angle)) translateX(var(--distance)) rotate(calc(var(--angle) * -1)) translateY(60px)
+      scale(0.5) rotate(var(--spin));
+    opacity: 0;
+  }
+}
+
+/* 大砲：集中線（漫画風の放射バースト） */
+.impact-rays {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 360px;
+  height: 360px;
+  margin: -180px 0 0 -180px;
+  pointer-events: none;
+  background:
+    repeating-conic-gradient(
+      from 0deg,
+      rgba(255, 255, 255, 0.85) 0deg 4deg,
+      transparent 4deg 18deg
+    );
+  -webkit-mask-image: radial-gradient(circle, transparent 22%, #000 30%, #000 55%, transparent 78%);
+          mask-image: radial-gradient(circle, transparent 22%, #000 30%, #000 55%, transparent 78%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: focusRays 0.55s ease-out forwards;
+}
+
+@keyframes focusRays {
+  0% {
+    transform: scale(0.4) rotate(0);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.5) rotate(18deg);
+    opacity: 0;
+  }
+}
+
+/* ===== Page Haze (横もや on tab switch) ===== */
+.page-haze {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+  overflow: hidden;
+}
+
+.page-haze-blur {
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(6px) saturate(140%);
+  -webkit-backdrop-filter: blur(6px) saturate(140%);
+  opacity: 0;
+  animation: hazeBlur 600ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.page-haze-streak {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 55vw;
+  left: -60vw;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.0) 10%,
+    rgba(255, 245, 200, 0.55) 45%,
+    rgba(255, 255, 255, 0.85) 55%,
+    rgba(255, 23, 68, 0.35) 70%,
+    transparent 100%
+  );
+  filter: blur(8px);
+  animation: hazeStreak 620ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes hazeBlur {
+  0% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes hazeStreak {
+  0% {
+    left: -60vw;
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    left: 130vw;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-haze {
+    display: none;
   }
 }

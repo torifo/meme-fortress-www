@@ -3,8 +3,8 @@ import { useEffect, useRef, useState } from "react";
 type Kind = "cannon" | "rubble";
 
 const CONFIG: Record<Kind, { count: number; duration: number }> = {
-  cannon: { count: 14, duration: 850 },
-  rubble: { count: 8, duration: 600 },
+  cannon: { count: 14, duration: 900 },
+  rubble: { count: 12, duration: 900 },
 };
 
 /**
@@ -28,6 +28,7 @@ export function ImpactFX({ kind, active }: { kind: Kind; active: boolean }) {
 
   const particles = Array.from({ length: count }, (_, i) => {
     const jitter = (i * 37) % 7;
+    const spin = ((i * 113) % 360) - 180;
     return (
       <span
         key={i}
@@ -37,6 +38,7 @@ export function ImpactFX({ kind, active }: { kind: Kind; active: boolean }) {
             "--i": i,
             "--total": count,
             "--jitter": jitter,
+            "--spin": `${spin}deg`,
             animationDuration: `${duration}ms`,
           } as React.CSSProperties
         }
@@ -47,6 +49,9 @@ export function ImpactFX({ kind, active }: { kind: Kind; active: boolean }) {
   return (
     <span className={`impact-fx impact-fx-${kind}`} aria-hidden="true">
       <span className="impact-flash" style={{ animationDuration: `${duration * 0.5}ms` }} />
+      {kind === "cannon" && (
+        <span className="impact-rays" style={{ animationDuration: `${duration * 0.6}ms` }} />
+      )}
       {particles}
     </span>
   );
