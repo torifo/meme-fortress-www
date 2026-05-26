@@ -140,7 +140,7 @@ button {
 }
 
 .arena {
-  min-height: 680px;
+  min-height: 520px;
   padding: 22px;
   overflow: hidden;
 }
@@ -194,7 +194,7 @@ button {
 
 .monitor {
   position: relative;
-  min-height: 462px;
+  min-height: 380px;
   padding: 18px;
   border: 4px solid var(--outline);
   border-radius: 10px;
