@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DatabaseZap, Flame, Gauge, Hand, RefreshCcw, Shield, Sparkles, Zap } from "lucide-react";
 import { createSnatch, fetchCollection, fetchMemes, syncVotes } from "./api";
 import { CornerRibbon } from "./components/CornerRibbon";
+import { ImpactFX, useImpactFX } from "./components/ImpactFX";
 import { NavBar } from "./components/NavBar";
 import { ScatteredDecorations } from "./components/ScatteredDecorations";
 import { ScratchCard } from "./components/ScratchCard";
@@ -27,6 +28,9 @@ export function App() {
   const [burst, setBurst] = useState(false);
   const [syncingVotes, setSyncingVotes] = useState(false);
   const [voteSync, setVoteSync] = useState<VoteSyncResponse | null>(null);
+  const [cannonActive, fireCannon] = useImpactFX("cannon");
+  const [resetRubble, triggerResetRubble] = useImpactFX("rubble");
+  const [syncRubble, triggerSyncRubble] = useImpactFX("rubble");
 
   useEffect(() => {
     fetchMemes(true)
@@ -67,6 +71,7 @@ export function App() {
 
   const handleSnatch = async () => {
     if (!activeMeme) return;
+    fireCannon();
     setBurst(true);
     const score = 0.62 + Math.random() * 0.38;
     const response = await createSnatch(activeMeme, score);
@@ -78,6 +83,7 @@ export function App() {
   };
 
   const resetRun = () => {
+    triggerResetRubble();
     setPhase("snatch");
     setSnatch(null);
     setReveal(null);
@@ -85,6 +91,7 @@ export function App() {
   };
 
   const handleSyncVotes = async () => {
+    triggerSyncRubble();
     setSyncingVotes(true);
     setError(null);
     try {
@@ -155,9 +162,10 @@ export function App() {
                     ))}
                   </div>
                 </div>
-                <button className="snatch-button" onClick={handleSnatch}>
+                <button className="snatch-button fx-button fx-cannon-recoil" onClick={handleSnatch}>
                   <Hand size={26} />
                   今だ！スナッチ
+                  <ImpactFX kind="cannon" active={cannonActive} />
                 </button>
               </>
             )}
@@ -183,9 +191,10 @@ export function App() {
                   <span><strong>剥離率</strong>{Math.round(reveal.revealed_ratio * 100)}%</span>
                   <span><strong>DB記録</strong>{reveal.reveal_id.slice(0, 8)}</span>
                 </div>
-                <button className="secondary-button" onClick={resetRun}>
+                <button className="secondary-button fx-button" onClick={resetRun}>
                   <RefreshCcw size={18} />
                   次の激流へ
+                  <ImpactFX kind="rubble" active={resetRubble} />
                 </button>
               </section>
             )}
@@ -202,8 +211,9 @@ export function App() {
             <section className="panel note-card">
               <span className="section-title">投票ログ同期</span>
               <p>公開 Google Sheets CSV を取得して、SQLite の <code>vote_logs</code> に追加します。</p>
-              <button className="secondary-button sync-button" onClick={handleSyncVotes} disabled={syncingVotes}>
+              <button className="secondary-button sync-button fx-button" onClick={handleSyncVotes} disabled={syncingVotes}>
                 <DatabaseZap size={18} />
+                <ImpactFX kind="rubble" active={syncRubble} />
                 {syncingVotes ? "同期中..." : "Sheets同期"}
               </button>
               {voteSync && (

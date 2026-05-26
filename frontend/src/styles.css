@@ -1130,3 +1130,132 @@ button {
     padding-left: 3rem;
   }
 }
+
+/* ===== Impact FX (cannon / rubble) ===== */
+.fx-button {
+  position: relative;
+  overflow: visible;
+}
+
+.impact-fx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.impact-flash {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 90px;
+  height: 90px;
+  margin: -45px 0 0 -45px;
+  border-radius: 50%;
+  animation: impactFlash 0.4s ease-out forwards;
+}
+
+.impact-fx-cannon .impact-flash {
+  width: 160px;
+  height: 160px;
+  margin: -80px 0 0 -80px;
+  background: radial-gradient(circle, #fff 0%, var(--highlight) 25%, var(--primary) 60%, transparent 78%);
+  mix-blend-mode: screen;
+  filter: blur(1px);
+}
+
+.impact-fx-rubble .impact-flash {
+  width: 70px;
+  height: 70px;
+  margin: -35px 0 0 -35px;
+  background: radial-gradient(circle, rgba(255, 240, 200, 0.85) 0%, rgba(160, 130, 90, 0.4) 50%, transparent 75%);
+}
+
+.impact-particle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  --angle: calc(360deg * var(--i) / var(--total) + var(--jitter) * 7deg);
+  --distance: 100px;
+  --size: 8px;
+  --color: var(--ink);
+  width: var(--size);
+  height: var(--size);
+  margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2);
+  background: var(--color);
+  border: 1.5px solid var(--outline);
+  border-radius: 2px;
+  animation: impactFly 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform: rotate(var(--angle)) translateX(0) rotate(calc(var(--angle) * -1));
+}
+
+.impact-fx-cannon .impact-particle {
+  --distance: 180px;
+  --size: 11px;
+  --color: var(--primary);
+  border-radius: 50%;
+  box-shadow: 0 0 12px var(--highlight);
+}
+
+.impact-fx-cannon .impact-particle:nth-child(odd) {
+  --color: var(--highlight);
+  box-shadow: 0 0 14px #fff;
+}
+
+.impact-fx-rubble .impact-particle {
+  --distance: 70px;
+  --size: 6px;
+  --color: #6b5a4a;
+}
+
+.impact-fx-rubble .impact-particle:nth-child(even) {
+  --color: #d4c4a8;
+  --size: 4px;
+}
+
+@keyframes impactFlash {
+  0% {
+    transform: scale(0.4);
+    opacity: 0.9;
+  }
+  60% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+@keyframes impactFly {
+  0% {
+    transform: rotate(var(--angle)) translateX(0) rotate(calc(var(--angle) * -1)) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(var(--angle)) translateX(var(--distance)) rotate(calc(var(--angle) * -1)) scale(0.25);
+    opacity: 0;
+  }
+}
+
+/* press recoil */
+.fx-button:active {
+  transform: translateY(2px) scale(0.98);
+}
+
+.fx-cannon-recoil:active {
+  transform: translateY(4px) scale(0.96);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .impact-fx {
+    display: none;
+  }
+  .fx-button:active,
+  .fx-cannon-recoil:active {
+    transform: none;
+  }
+}
