@@ -13,6 +13,7 @@ export function ScratchCard({
   const [ratio, setRatio] = useState(0);
   const [isRevealing, setIsRevealing] = useState(false);
   const doneRef = useRef(false);
+  const lastPos = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -34,6 +35,20 @@ export function ScratchCard({
     ctx.fillText("こすれ！カリカリカリ！", rect.width / 2, rect.height / 2 + 22);
   }, [snatch.snatch_id]);
 
+  // コインの接地エッジを模した楕円ブラシ。
+  // 長軸を ╲（左上→右下, 45deg）に固定する。
+  // → ╱方向（右上→左下）に動かすと長辺を横に掃くため削れる面積が最大、
+  //   ╲方向（左上→右下）に動かすと薄い辺をなぞるため面積が最小になる。
+  const COIN_LONG = 38;
+  const COIN_SHORT = 8;
+  const COIN_ANGLE = Math.PI / 4;
+
+  const stampCoin = (ctx: CanvasRenderingContext2D, x: number, y: number) => {
+    ctx.beginPath();
+    ctx.ellipse(x, y, COIN_LONG, COIN_SHORT, COIN_ANGLE, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
   const scratch = async (clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
@@ -43,9 +58,20 @@ export function ScratchCard({
     const x = clientX - rect.left;
     const y = clientY - rect.top;
     ctx.globalCompositeOperation = "destination-out";
-    ctx.beginPath();
-    ctx.arc(x, y, 28, 0, Math.PI * 2);
-    ctx.fill();
+
+    // 前回位置との間を補間して連続したストロークにする（楕円が薄いため隙間防止）
+    const last = lastPos.current;
+    if (last) {
+      const dist = Math.hypot(x - last.x, y - last.y);
+      const steps = Math.max(1, Math.ceil(dist / 3));
+      for (let s = 1; s <= steps; s++) {
+        const t = s / steps;
+        stampCoin(ctx, last.x + (x - last.x) * t, last.y + (y - last.y) * t);
+      }
+    } else {
+      stampCoin(ctx, x, y);
+    }
+    lastPos.current = { x, y };
 
     const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
     let cleared = 0;
@@ -83,9 +109,18 @@ export function ScratchCard({
         <canvas
           ref={canvasRef}
           className="scratch-canvas"
-          onPointerDown={(event) => scratch(event.clientX, event.clientY)}
+          onPointerDown={(event) => {
+            lastPos.current = null;
+            scratch(event.clientX, event.clientY);
+          }}
           onPointerMove={(event) => {
             if (event.buttons === 1) scratch(event.clientX, event.clientY);
+          }}
+          onPointerUp={() => {
+            lastPos.current = null;
+          }}
+          onPointerLeave={() => {
+            lastPos.current = null;
           }}
         />
       </div>
