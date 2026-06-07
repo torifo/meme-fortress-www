@@ -1,5 +1,11 @@
 # MEME FORTRESS / 電脳ミーム要塞
 
+<!-- tech-stack:start (auto-generated) -->
+<p align="center">
+  <img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" alt="Rust">
+</p>
+<!-- tech-stack:end -->
+
 🚧 **開発中（Under Development）** 🚧
 
 ネットミームを「要塞」テーマで派手に演出するエンタメ寄りミーム図書館アプリ。
