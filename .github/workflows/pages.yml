@@ -1,0 +1,42 @@
+name: Deploy docs to Pages
+
+# Pages の設定は build_type=workflow（GitHub Actions からのデプロイ）になっている一方、
+# それに対応するワークフローが無く、レガシーの pages-build-deployment が中途半端に
+# 走って errored のまま止まっていた。docs/ をそのまま配信するワークフローを置いて整合させる。
+# upload-pages-artifact は静的ファイルをそのまま上げるので Jekyll のビルドは挟まらない。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同時デプロイを避ける。進行中のデプロイは走り切らせる。
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
